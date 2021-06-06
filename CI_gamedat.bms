@@ -1,0 +1,136 @@
+# Utilidad para modificar el archivo game.dat de Culpa Innata | por Kurt (2021)
+
+/*
+CHANGELOG:
+V.0.1: Firts Release (5/6/21)
+
+BUGS:
+
+TODO:
+
+*/
+
+Get SIZE asize
+Get SIZETOTAL asize #Variable para luego exportar el archivo "out.dat" con su tamaño.
+Get NOMBRE filename
+
+Open "." quickbms_arg1 1
+Get SIZETEXTO asize 1
+Savepos OFFSET 1
+
+Log MEMORY_FILE 0 SIZE 0 #PASAMOS EL ARCHIVO CARGADO COMO NOMBRE A MEMORIA PARA TRABAJAR CON EL
+Log MEMORY_FILE2 0 0
+Log MEMORY_FILE3 0 0
+
+Print "{c}Excuting script...{}"
+Set NUMLINE LONG 0
+
+Do
+	GetCT LINE String 0x0D 1
+	# Obtenemos la línea original del archivo de texto en la variable LINE
+	Strlen LONGITUD LINE #LONGITUD = Longitud de LINE --Se puede borrar
+	Savepos OFFSET 1 #--Se puede borrar
+	#Guardamos la posición del archivo de texto en la variable OFFSET
+
+	FindLoc OFFSETORIGINAL String LINE MEMORY_FILE "" # BUSCAMOS LA CADENA ORIGINAL EN EL ARCHIVO DE MEMORIA
+	If OFFSETORIGINAL == ""
+		Print "\n{9}STRING NOT FOUND:{} \n%LINE%"
+		Goto 1 MEMORY_FILE
+		#Vamos al principio del MEMORY_FILE
+		FindLoc DUMMY String " " MEMORY_FILE
+		#Buscamos una cadena DUMMY del MEMORY_FILE para que el script no termine.
+		
+		Savepos OFFSET 1
+		Math OFFSET + 1
+		Goto OFFSET 1
+		GetCT LINE2 String 0x0D 1
+		#Obtenemos la siguiente línea traducida para poder continuar el recorrido del archivo de texto
+		Strlen LONGITUD LINE2		
+	Else #Si encuentra la cadena de texto en el game.dat
+		Savepos OFFSET 1 #Guardamos la posición del archivo de texto en la variable OFFSET
+		Math OFFSET + 1 
+		Goto OFFSET 1 #Avanzamos una posición del archivo de texto para poder leer la línea traducida
+		GetCT LINE2 String 0x0D 1 #LINE2= Línea traducida hasta que encuentre el código 0x0D
+		Strlen LONGITUD LINE2 #LONGITUD = Longitud de LINE2
+		Strlen LONGITUDORIGINAL LINE #LONGITUDORIGINAL = Longitud de LINE
+		If LONGITUDORIGINAL < LONGITUD
+			Math OFFSETORIGINAL - 4
+			#Nos posicionamos en el offset donde se indica el tamaño del texto en game.dat
+			Goto OFFSETORIGINAL MEMORY_FILE
+			Put LONGITUD long MEMORY_FILE #Ponemos el tamaño del texto traducido.
+			Savepos OFFSETORIGINAL MEMORY_FILE		
+			Math LONGITUD - LONGITUDORIGINAL
+			Math SIZETOTAL + LONGITUD #Sumamos en el tamaño del archivo "out.dat" los bytes de más.
+			
+			String CADENA = LINE2
+			String CADENA - LONGITUD
+			#Asignamos a la variable CADENA el texto que coincide con el mismo tamaño del origianl
+			
+			PutCT CADENA String -1 MEMORY_FILE #Sobreescribimos el texto en MEMORY_FILE
+			Savepos OFFSET MEMORY_FILE
+			
+			Append 2 #Cambiamos la forma de meter datos, para insertar el texto sin sobreescribir.
+					
+			String CADENA = LINE2
+			String CADENA < LONGITUDORIGINAL
+			#Asiganmos a la variable CADENA el texto nuevo que hay que insertar
+			Math OFFSET - 1 # PORQUE HAGO ESTO?????????
+			PutCT CADENA String -1 MEMORY_FILE
+			#Se inserta el nuevo texto desplazando el resto hacia abajo.
+			
+			Append 1 #Cambiamos la forma de meter datos.
+			
+			MATH NUMLINE + 1
+		Else
+			If LONGITUD != 0
+				#LA CADENA TRADUCIDA ES MAS PEQUEÑA QUE LA ORIGINAL
+				Math OFFSETORIGINAL - 4				#Nos posicionamos en el offset donde se indica el tamaño del texto en game.dat
+				Goto OFFSETORIGINAL MEMORY_FILE
+				Put LONGITUD long MEMORY_FILE		#Ponemos el tamaño del texto traducido.
+				PutCT LINE2 String -1 MEMORY_FILE	#Ponemos el texto traducido en MEMORY_FILE
+				Savepos OFFSETORIGINAL2 MEMORY_FILE	#OFFSETORIGINAL2 donde se ha quedado el texto traducido
+				Math OFFSETORIGINAL + LONGITUDORIGINAL
+				Math OFFSETORIGINAL + 4				#OFFSETORIGINAL actualmente es la posición del final del texto original del MEMORY_FILE
+				
+				Get SIZE asize MEMORY_FILE
+				MATH SIZE - OFFSETORIGINAL
+				# SIZE es el tamaño que queda desde el OFFSETORIGINAL hasta el final de MEMORY_FILE
+				Log MEMORY_FILE2 OFFSETORIGINAL SIZE MEMORY_FILE	#Asignamos a MEMORY_FILE2 el final de MEMORY_FILE desde OFFSETORIGINAL hasta el final.
+				Goto 0 MEMORY_FILE2
+				Math LONGITUDORIGINAL - LONGITUD
+				#LONGITUDORIGINAL es la diferencia de longitud del texto original con el texto traducido.
+				MATH SIZE - LONGITUDORIGINAL	#--Se puede borrar
+				Math SIZETOTAL - LONGITUDORIGINAL
+				#SIZETOTAL se le resta la diferencia de longitud del texto.
+				
+				Get SIZE2 asize MEMORY_FILE2
+				
+				Append 2	#Cambiamos la forma de meter datos, para insertar el texto sin sobreescribir. 
+				Log MEMORY_FILE 0 SIZE2 MEMORY_FILE2	#Se inserta desde la posición del offset de MEMORY_FILE, el contenido de MEMORY_FILE2
+				Append		#Cambiamos la forma de meter datos.
+				Log MEMORY_FILE3 0 SIZE2 MEMORY_FILE2	#--Se puede borrar
+				Log MEMORY_FILE2 0 0					#Borramos el archivo MEMORY_FILE2
+				
+				Goto OFFSETORIGINAL2 MEMORY_FILE		#Volvemos al offset donse se quedó el texto traducido.
+				
+				MATH NUMLINE + 1
+	
+			Else	#Si se pasa el segundo argumento "show", se muestra en pantalla las líneas sin traducción. Puede servir para extraer en un archivo de texto.
+				If quickbms_arg2 = "show"
+					Print "\n{1}STRING WITHOUT TRANSLATION: {}\n%LINE%"
+				EndIf
+			EndIf
+	
+	
+		EndIf
+	
+	EndIf
+
+	Savepos OFFSET 1
+	Math OFFSET + 1
+	Goto OFFSET 1		#Avanzamos hasta la siguiente línea original del texto.
+	
+While OFFSET < SIZETEXTO
+Print "\n"
+Log "out.dat" 0 SIZETOTAL MEMORY_FILE
+Print "\n%NUMLINE% line/s replaced"
